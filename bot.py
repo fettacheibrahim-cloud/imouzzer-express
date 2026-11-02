@@ -4,8 +4,9 @@ import feedparser
 
 # قراءة رمز المصادقة الخاص بصفحة فيسبوك من متغيرات البيئة
 PAGE_TOKEN = os.getenv("FB_PAGE_TOKEN")
-# يمكنك استبدال هذا الرابط برابط مصدر الأخبار (RSS Feed) الخاص بموقعك أو صفحتك
-RSS_FEED_URL = "https://example.com/rss" # ضع رابط الـ RSS الخاص بك هنا
+
+# وضع رابط الـ RSS الخاص بمدونتك هنا (استبدل example.com برابط موقعك الحقيقي)
+RSS_FEED_URL = "https://fettachei.github.io/اسم_مستودعك/rss.xml" # أو رابط الـ RSS الخاص بمدونتك
 
 def post_to_facebook(message):
     """دالة لنشر المحتوى على صفحة فيسبوك باستخدام Facebook Graph API"""
@@ -34,18 +35,18 @@ def post_to_facebook(message):
         return False
 
 def main():
-    print("Starting bot execution...")
+    print("Starting bot execution and checking your blog...")
     
-    # مثال توضيحي لجلب أحدث خبر من مصدر RSS والنشر تلقائياً
     try:
         feed = feedparser.parse(RSS_FEED_URL)
         if feed.entries:
+            # جلب أآخر خبر نُشر على مدونتك
             latest_entry = feed.entries[0]
-            post_message = f"{latest_entry.title}\n\n{latest_entry.link}"
-            print("Found new article, publishing to Facebook...")
+            post_message = f"{latest_entry.title}\n\nاقرأ التفاصيل على مدونتنا:\n{latest_entry.link}"
+            print("Found new article on your blog, publishing to Facebook...")
             post_to_facebook(post_message)
         else:
-            print("No entries found in the RSS feed.")
+            print("No new entries found in your blog RSS feed.")
     except Exception as e:
         print("Error parsing RSS feed or running bot:", e)
 
