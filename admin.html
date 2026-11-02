@@ -6,29 +6,40 @@
     <title>لوحة تحكم إيموزار إكسبريس</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #0f172a; color: #fff; padding: 20px; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 30px; }
         h2 { text-align: center; color: #f59e0b; }
         label { display: block; margin-top: 15px; margin-bottom: 5px; color: #cbd5e1; }
         input, textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
         button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 20px; cursor: pointer; }
         button:hover { background: #d97706; }
-        .setup-box { background: #334155; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; }
+        .setup-box { background: #334155; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; color: #94a3b8; }
+        .forgot-btn { background: transparent; color: #38bdf8; border: none; margin-top: 10px; cursor: pointer; font-size: 14px; text-decoration: underline; width: 100%; text-align: center; }
+        .forgot-btn:hover { color: #0ea5e9; }
     </style>
 </head>
 <body>
 
+<!-- قسم تسجيل الدخول -->
 <div class="container" id="loginSection">
     <h2>تسجيل دخول الأدمن</h2>
     <div class="setup-box">
-        أدخل رمز Access Token الخاص بك للتحكم في الموقع:
+        أدخل كلمة المرور الخاصة لوحة التحكم أو رمز GitHub Token للربط المباشر:
     </div>
-    <label for="ghToken">رمز GitHub Token:</label>
-    <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxx">
+    <label for="adminPassword">كلمة المرور أو الرمز:</label>
+    <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور هنا">
+    
     <button onclick="checkLogin()">دخول لوحة التحكم</button>
+    <button class="forgot-btn" onclick="recoverPassword()">نسيت كلمة المرور؟ (إرسال للبريد والهاتف)</button>
+    <p id="loginMsg" style="text-align: center; margin-top: 10px; font-weight: bold;"></p>
 </div>
 
+<!-- قسم لوحة التحكم ونشر الأخبار -->
 <div class="container" id="adminSection" style="display: none;">
     <h2>إضافة خبر جديد</h2>
+    
+    <label for="ghTokenInput">رمز GitHub Token (لأول مرة فقط إذا لم تقم بحفظه):</label>
+    <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxxxx">
+
     <label for="newsTitle">عنوان الخبر:</label>
     <input type="text" id="newsTitle" placeholder="أدخل عنوان الخبر الرئيسي">
 
@@ -36,94 +47,4 @@
     <input type="text" id="newsCategory" value="متابعات إيموزار كندر والإقليم">
 
     <label for="newsContent">محتوى الخبر:</label>
-    <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea>
-
-    <button onclick="publishToGithub()">نشر الخبر وتحديث الموقع والـ RSS</button>
-    <p id="statusMsg" style="text-align: center; margin-top: 15px; font-weight: bold;"></p>
-</div>
-
-<script>
-    const REPO_OWNER = "fettachei";
-    const REPO_NAME = "imouzzer-express";
-
-    function checkLogin() {
-        const token = document.getElementById("ghToken").value.trim();
-        if (!token) {
-            alert("الرجاء إدخال الرمز الخاص بك!");
-            return;
-        }
-        localStorage.setItem("GH_PAT", token);
-        document.getElementById("loginSection").style.display = "none";
-        document.getElementById("adminSection").style.display = "block";
-    }
-
-    if (localStorage.getItem("GH_PAT")) {
-        document.getElementById("loginSection").style.display = "none";
-        document.getElementById("adminSection").style.display = "block";
-    }
-
-    async function publishToGithub() {
-        const title = document.getElementById("newsTitle").value.trim();
-        const category = document.getElementById("newsCategory").value.trim();
-        const content = document.getElementById("newsContent").value.trim();
-        const token = localStorage.getItem("GH_PAT");
-        const status = document.getElementById("statusMsg");
-
-        if (!title || !content) {
-            alert("يرجى إدخال العنوان والمحتوى!");
-            return;
-        }
-
-        status.style.color = "#f59e0b";
-        status.innerText = "جاري نشر الخبر وتحديث RSS والموقع...";
-
-        const pubDate = new Date().toUTCString();
-        const rssContent = `<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
-<channel>
-  <title>إيموزار إكسبريس</title>
-  <link>https://${REPO_OWNER}.github.io/${REPO_NAME}/</link>
-  <description>أخبار ومتابعات إيموزار كندر والإقليم</description>
-  <item>
-    <title><![CDATA[${title}]]></title>
-    <link>https://${REPO_OWNER}.github.io/${REPO_NAME}/</link>
-    <description><![CDATA[${content}]]></description>
-    <category><![CDATA[${category}]]></category>
-    <pubDate>${pubDate}</pubDate>
-  </item>
-</channel>
-</rss>`;
-
-        try {
-            // تحديث rss.xml
-            let shaRss = "";
-            const getRss = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
-                headers: { 'Authorization': `token ${token}` }
-            });
-            if (getRss.ok) {
-                const data = await getRss.json();
-                shaRss = data.sha;
-            }
-
-            await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
-                method: 'PUT',
-                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: `نشر خبر: ${title}`,
-                    content: btoa(unescape(encodeURIComponent(rssContent))),
-                    sha: shaRss || undefined
-                })
-            });
-
-            status.style.color = "#10b981";
-            status.innerText = "تم النشر وتحديث RSS بنجاح! سيتم سحب الخبر ونشره على فيسبوك تلقائياً.";
-            document.getElementById("newsTitle").value = "";
-            document.getElementById("newsContent").value = "";
-        } catch (e) {
-            status.style.color = "#ef4444";
-            status.innerText = "حدث خطأ: " + e.message;
-        }
-    }
-</script>
-</body>
-</html>
+    <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea
