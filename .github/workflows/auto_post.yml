@@ -1,0 +1,29 @@
+name: Auto Post Imouzzer Express 24/7
+
+on:
+  schedule:
+    - cron: '0 */3 * * *' # ينشر كل 3 ساعات تلقائياً
+  workflow_dispatch: # يتيح لك تشغيل البوت يدوياً للتجربة في أي وقت
+
+jobs:
+  build-and-post:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests feedparser
+
+    - name: Run Facebook Bot
+      env:
+        FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+      run: python bot.py
