@@ -3,8 +3,8 @@ import requests
 import feedparser
 import random
 
-# قراءة الرمز من Secret بأمان
-PAGE_ACCESS_TOKEN = os.getenv('FB_PAGE_TOKEN')
+# قراءة الرمز من Secret
+USER_TOKEN = os.getenv('FB_PAGE_TOKEN')
 PAGE_ID = '110232817345910'
 SITE_URL = 'https://fettacheibrahim-cloud.github.io/imouzzer-express/'
 
@@ -35,12 +35,28 @@ def format_moroccan_style(title):
     body = f"📢 في التفاصيل: {title}\n\nللاطلاع على باقي التفاصيل، تجدون المقال كاملًا عبر موقعنا أسفله. 👇"
     return moroccan_intro + body
 
+def get_page_access_token():
+    print("🔄 جاري جلب رمز الوصول الخاص بالصفحة تلقائياً...")
+    url = f"https://graph.facebook.com/v26.0/me/accounts?access_token={USER_TOKEN}"
+    try:
+        res = requests.get(url).json()
+        if 'data' in res:
+            for page in res['data']:
+                if page.get('id') == PAGE_ID:
+                    print("✅ تم العثور على رمز الصفحة بنجاح!")
+                    return page.get('access_token')
+        print( لم يتم العثور على الصفحة عبر الرموز، سيتم التجربة بالرمز المباشر...)
+    except Exception as e:
+        print(f"⚠️ خطأ في جلب رمز الصفحة: {e}")
+    return USER_TOKEN
+
 def publish_to_facebook(message, link):
+    token = get_page_access_token()
     url = f"https://graph.facebook.com/v26.0/{PAGE_ID}/feed"
     payload = {
         'message': message,
         'link': link.strip(),
-        'access_token': PAGE_ACCESS_TOKEN
+        'access_token': token
     }
     try:
         response = requests.post(url, data=payload)
