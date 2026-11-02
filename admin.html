@@ -20,9 +20,9 @@
 <div class="container" id="loginSection">
     <h2>تسجيل دخول الأدمن</h2>
     <div class="setup-box">
-        أدخل رمز Access Token الخاص بك في GitHub للتحكم في الموقع (يُحفظ مسبقاً في متصفحك فقط):
+        أدخل رمز Access Token الخاص بك للتحكم في الموقع:
     </div>
-    <label for="ghToken">رمز GitHub Personal Access Token:</label>
+    <label for="ghToken">رمز GitHub Token:</label>
     <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxx">
     <button onclick="checkLogin()">دخول لوحة التحكم</button>
 </div>
@@ -43,9 +43,8 @@
 </div>
 
 <script>
-    // إعدادات المستودع
     const REPO_OWNER = "fettachei";
-    const REPO_NAME = "imouzzer-express"; // تأكد من اسم المستودع الدقيق لديك
+    const REPO_NAME = "imouzzer-express";
 
     function checkLogin() {
         const token = document.getElementById("ghToken").value.trim();
@@ -58,7 +57,6 @@
         document.getElementById("adminSection").style.display = "block";
     }
 
-    // الاستمرار في تسجيل الدخول إذا كان الرمز محفوظاً
     if (localStorage.getItem("GH_PAT")) {
         document.getElementById("loginSection").style.display = "none";
         document.getElementById("adminSection").style.display = "block";
@@ -77,9 +75,8 @@
         }
 
         status.style.color = "#f59e0b";
-        status.innerText = "جاري الاتصال بـ GitHub ونشر الخبر...";
+        status.innerText = "جاري نشر الخبر وتحديث RSS والموقع...";
 
-        // تجهيز محتوى ملف الـ RSS الجديد
         const pubDate = new Date().toUTCString();
         const rssContent = `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
@@ -98,47 +95,35 @@
 </rss>`;
 
         try {
-            // 1. جلب الـ SHA الخاص بملف rss.xml الحالي إذا كان موجوداً
-            let sha = "";
-            const getFileReq = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
+            // تحديث rss.xml
+            let shaRss = "";
+            const getRss = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
                 headers: { 'Authorization': `token ${token}` }
             });
-            
-            if (getFileReq.ok) {
-                const fileData = await getFileReq.json();
-                sha = fileData.sha;
+            if (getRss.ok) {
+                const data = await getRss.json();
+                shaRss = data.sha;
             }
 
-            // 2. تحديث أو إنشاء ملف rss.xml
-            const updateReq = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
+            await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: `نشر خبر جديد: ${title}`,
+                    message: `نشر خبر: ${title}`,
                     content: btoa(unescape(encodeURIComponent(rssContent))),
-                    sha: sha ? sha : undefined
+                    sha: shaRss || undefined
                 })
             });
 
-            if (updateReq.ok) {
-                status.style.color = "#10b981";
-                status.innerText = "تم نشر الخبر وتحديث ملف الـ RSS بنجاح! سيقوم البوت بنشره على فيسبوك تلقائياً.";
-                document.getElementById("newsTitle").value = "";
-                document.getElementById("newsContent").value = "";
-            } else {
-                const err = await updateReq.json();
-                status.style.color = "#ef4444";
-                status.innerText = "فشل النشر: " + (err.message || "تأكد من صحة الرمز");
-            }
+            status.style.color = "#10b981";
+            status.innerText = "تم النشر وتحديث RSS بنجاح! سيتم سحب الخبر ونشره على فيسبوك تلقائياً.";
+            document.getElementById("newsTitle").value = "";
+            document.getElementById("newsContent").value = "";
         } catch (e) {
             status.style.color = "#ef4444";
-            status.innerText = "حدث خطأ أثناء الاتصال: " + e.message;
+            status.innerText = "حدث خطأ: " + e.message;
         }
     }
 </script>
-
 </body>
 </html>
