@@ -12,16 +12,19 @@
         input, textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
         button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 20px; cursor: pointer; }
         button:hover { background: #d97706; }
-        .login-box { margin-bottom: 20px; }
+        .setup-box { background: #334155; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; }
     </style>
 </head>
 <body>
 
 <div class="container" id="loginSection">
     <h2>تسجيل دخول الأدمن</h2>
-    <label for="adminPass">كلمة المرور:</label>
-    <input type="password" id="adminPass" placeholder="أدخل كلمة المرور الخاصة بك">
-    <button onclick="checkLogin()">دخول</button>
+    <div class="setup-box">
+        أدخل رمز Access Token الخاص بك في GitHub للتحكم في الموقع (يُحفظ مسبقاً في متصفحك فقط):
+    </div>
+    <label for="ghToken">رمز GitHub Personal Access Token:</label>
+    <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxx">
+    <button onclick="checkLogin()">دخول لوحة التحكم</button>
 </div>
 
 <div class="container" id="adminSection" style="display: none;">
@@ -30,49 +33,110 @@
     <input type="text" id="newsTitle" placeholder="أدخل عنوان الخبر الرئيسي">
 
     <label for="newsCategory">التصنيف:</label>
-    <input type="text" id="newsCategory" placeholder="مثال: متابعات إيموزار كندر والإقليم">
+    <input type="text" id="newsCategory" value="متابعات إيموزار كندر والإقليم">
 
     <label for="newsContent">محتوى الخبر:</label>
     <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea>
 
-    <button onclick="publishNews()">نشر الخبر وتحديث الموقع</button>
-    <p id="statusMsg" style="text-align: center; margin-top: 15px;"></p>
+    <button onclick="publishToGithub()">نشر الخبر وتحديث الموقع والـ RSS</button>
+    <p id="statusMsg" style="text-align: center; margin-top: 15px; font-weight: bold;"></p>
 </div>
 
 <script>
-    // كلمة المرور الخاصة بك للوحة التحكم (يمكنك تغييرها هنا)
-    const SECRET_PIN = "1234";
+    // إعدادات المستودع
+    const REPO_OWNER = "fettachei";
+    const REPO_NAME = "imouzzer-express"; // تأكد من اسم المستودع الدقيق لديك
 
     function checkLogin() {
-        const pass = document.getElementById("adminPass").value;
-        if (pass === SECRET_PIN) {
-            document.getElementById("loginSection").style.display = "none";
-            document.getElementById("adminSection").style.display = "block";
-        } else {
-            alert("كلمة المرور غير صحيحة!");
+        const token = document.getElementById("ghToken").value.trim();
+        if (!token) {
+            alert("الرجاء إدخال الرمز الخاص بك!");
+            return;
         }
+        localStorage.setItem("GH_PAT", token);
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("adminSection").style.display = "block";
     }
 
-    function publishNews() {
-        const title = document.getElementById("newsTitle").value;
-        const category = document.getElementById("newsCategory").value;
-        const content = document.getElementById("newsContent").value;
+    // الاستمرار في تسجيل الدخول إذا كان الرمز محفوظاً
+    if (localStorage.getItem("GH_PAT")) {
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("adminSection").style.display = "block";
+    }
+
+    async function publishToGithub() {
+        const title = document.getElementById("newsTitle").value.trim();
+        const category = document.getElementById("newsCategory").value.trim();
+        const content = document.getElementById("newsContent").value.trim();
+        const token = localStorage.getItem("GH_PAT");
         const status = document.getElementById("statusMsg");
 
         if (!title || !content) {
-            alert("الرجاء ملء عنوان ومحتوى الخبر على الأقل!");
+            alert("يرجى إدخال العنوان والمحتوى!");
             return;
         }
 
         status.style.color = "#f59e0b";
-        status.innerText = "جاري حفظ ونشر الخبر...";
+        status.innerText = "جاري الاتصال بـ GitHub ونشر الخبر...";
 
-        // ملاحظة: لربط هذه الواجهة برمجياً بمستودع GitHub مباشرة لتحديث ملف الـ RSS تلقائياً،
-        // سنحتاج إلى ربطها بـ GitHub API باستخدام Token شخصي للمستودع (Personal Access Token).
-        setTimeout(() => {
-            status.style.color = "#10b981";
-            status.innerText = "تم حفظ الخبر بنجاح! سيتم تحديث الموقع ونشره فيسبوك قريباً.";
-        }, 1500);
+        // تجهيز محتوى ملف الـ RSS الجديد
+        const pubDate = new Date().toUTCString();
+        const rssContent = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>إيموزار إكسبريس</title>
+  <link>https://${REPO_OWNER}.github.io/${REPO_NAME}/</link>
+  <description>أخبار ومتابعات إيموزار كندر والإقليم</description>
+  <item>
+    <title><![CDATA[${title}]]></title>
+    <link>https://${REPO_OWNER}.github.io/${REPO_NAME}/</link>
+    <description><![CDATA[${content}]]></description>
+    <category><![CDATA[${category}]]></category>
+    <pubDate>${pubDate}</pubDate>
+  </item>
+</channel>
+</rss>`;
+
+        try {
+            // 1. جلب الـ SHA الخاص بملف rss.xml الحالي إذا كان موجوداً
+            let sha = "";
+            const getFileReq = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
+                headers: { 'Authorization': `token ${token}` }
+            });
+            
+            if (getFileReq.ok) {
+                const fileData = await getFileReq.json();
+                sha = fileData.sha;
+            }
+
+            // 2. تحديث أو إنشاء ملف rss.xml
+            const updateReq = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: `نشر خبر جديد: ${title}`,
+                    content: btoa(unescape(encodeURIComponent(rssContent))),
+                    sha: sha ? sha : undefined
+                })
+            });
+
+            if (updateReq.ok) {
+                status.style.color = "#10b981";
+                status.innerText = "تم نشر الخبر وتحديث ملف الـ RSS بنجاح! سيقوم البوت بنشره على فيسبوك تلقائياً.";
+                document.getElementById("newsTitle").value = "";
+                document.getElementById("newsContent").value = "";
+            } else {
+                const err = await updateReq.json();
+                status.style.color = "#ef4444";
+                status.innerText = "فشل النشر: " + (err.message || "تأكد من صحة الرمز");
+            }
+        } catch (e) {
+            status.style.color = "#ef4444";
+            status.innerText = "حدث خطأ أثناء الاتصال: " + e.message;
+        }
     }
 </script>
 
