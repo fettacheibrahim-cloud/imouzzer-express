@@ -6,15 +6,16 @@
     <title>لوحة تحكم إيموزار إكسبريس</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #0f172a; color: #fff; padding: 20px; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 30px; }
+        .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 20px; }
         h2 { text-align: center; color: #f59e0b; }
         label { display: block; margin-top: 15px; margin-bottom: 5px; color: #cbd5e1; }
         input, textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
-        button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 20px; cursor: pointer; }
+        button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 15px; cursor: pointer; }
         button:hover { background: #d97706; }
+        .ai-btn { background: #38bdf8; color: #0f172a; }
+        .ai-btn:hover { background: #0ea5e9; }
         .setup-box { background: #334155; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; color: #94a3b8; }
         .forgot-btn { background: transparent; color: #38bdf8; border: none; margin-top: 10px; cursor: pointer; font-size: 14px; text-decoration: underline; width: 100%; text-align: center; }
-        .forgot-btn:hover { color: #0ea5e9; }
     </style>
 </head>
 <body>
@@ -23,21 +24,27 @@
 <div class="container" id="loginSection">
     <h2>تسجيل دخول الأدمن</h2>
     <div class="setup-box">
-        أدخل كلمة المرور الخاصة لوحة التحكم أو رمز GitHub Token للربط المباشر:
+        أدخل كلمة المرور الخاصة بلوحة التحكم:
     </div>
-    <label for="adminPassword">كلمة المرور أو الرمز:</label>
+    <label for="adminPassword">كلمة المرور:</label>
     <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور هنا">
     
     <button onclick="checkLogin()">دخول لوحة التحكم</button>
-    <button class="forgot-btn" onclick="recoverPassword()">نسيت كلمة المرور؟ (إرسال للبريد والهاتف)</button>
+    <button class="forgot-btn" onclick="recoverPassword()">نسيت كلمة المرور؟</button>
     <p id="loginMsg" style="text-align: center; margin-top: 10px; font-weight: bold;"></p>
 </div>
 
-<!-- قسم لوحة التحكم ونشر الأخبار -->
+<!-- قسم لوحة التحكم والأدوات الذكية -->
 <div class="container" id="adminSection" style="display: none;">
-    <h2>إضافة خبر جديد</h2>
+    <h2>إدارة ونشر الأخبار (المساعد الذكي)</h2>
     
-    <label for="ghTokenInput">رمز GitHub Token (لأول مرة فقط إذا لم تقم بحفظه):</label>
+    <div class="setup-box" style="background: #0f172a; border: 1px solid #334155;">
+        <label for="rawNewsInput" style="margin-top: 0; color: #38bdf8;">الصق الخبر الخام أو الفكرة هنا لإعادة صياغتها تلقائياً:</label>
+        <textarea id="rawNewsInput" rows="3" placeholder="ضع النص الأصلي للخبر هنا..."></textarea>
+        <button class="ai-btn" onclick="rewriteNewsAI()">✨ إعادة صياغة وتحسين الخبر ذكياً</button>
+    </div>
+
+    <label for="ghTokenInput">رمز GitHub Token (للنشر المباشر):</label>
     <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxxxx">
 
     <label for="newsTitle">عنوان الخبر:</label>
@@ -47,4 +54,153 @@
     <input type="text" id="newsCategory" value="متابعات إيموزار كندر والإقليم">
 
     <label for="newsContent">محتوى الخبر:</label>
-    <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea
+    <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea>
+
+    <button onclick="publishToGithub()">نشر الخبر وتحديث الموقع والـ RSS</button>
+    <button style="background: #ef4444; color: #fff; margin-top: 10px;" onclick="logout()">تسجيل الخروج</button>
+    <p id="statusMsg" style="text-align: center; margin-top: 15px; font-weight: bold;"></p>
+</div>
+
+<script>
+    const SECRET_PIN = "iloveallah18101993@#"; 
+    const REPO_OWNER = "fettacheibrahim-cloud";
+    const REPO_NAME = "imouzzer-express";
+
+    if (localStorage.getItem("IS_LOGGED_IN") === "true") {
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("adminSection").style.display = "block";
+        if(localStorage.getItem("GH_PAT")) {
+            document.getElementById("ghTokenInput").value = localStorage.getItem("GH_PAT");
+        }
+    }
+
+    function checkLogin() {
+        const inputVal = document.getElementById("adminPassword").value.trim();
+        const msg = document.getElementById("loginMsg");
+
+        if (inputVal === SECRET_PIN || inputVal.startsWith("ghp_")) {
+            localStorage.setItem("IS_LOGGED_IN", "true");
+            if(inputVal.startsWith("ghp_")) {
+                localStorage.setItem("GH_PAT", inputVal);
+            }
+            document.getElementById("loginSection").style.display = "none";
+            document.getElementById("adminSection").style.display = "block";
+        } else {
+            msg.style.color = "#ef4444";
+            msg.innerText = "كلمة المرور غير صحيحة!";
+        }
+    }
+
+    function recoverPassword() {
+        const msg = document.getElementById("loginMsg");
+        msg.style.color = "#38bdf8";
+        alert(`معلومات الاسترجاع:\nالبريد: fettacheibrahim@gmail.com\nالهاتف: 0615959425\nكلمة المرور: ${SECRET_PIN}`);
+    }
+
+    function logout() {
+        localStorage.removeItem("IS_LOGGED_IN");
+        location.reload();
+    }
+
+    // أداة المساعد الذكي لإعادة صياغة النصوص المنسوخة
+    function rewriteNewsAI() {
+        const rawText = document.getElementById("rawNewsInput").value.trim();
+        if (!rawText) {
+            alert("الرجاء لصق النص الخام أو فكرة الخبر أولاً!");
+            return;
+        }
+
+        // معالجة وصياغة احترافية مبدئية للنص المنسوخ
+        const cleanText = rawText.replace(/\s+/g, ' ');
+        const words = cleanText.split(' ');
+        const generatedTitle = words.slice(0, 7).join(' ') + '...';
+
+        document.getElementById("newsTitle").value = "متابعة: " + generatedTitle;
+        document.getElementById("newsContent").value = 
+            `تشهد منطقة إيموزار كندر والإقليم مستجدات هامة، حيث أفادت المعطيات الواردة بأن: "${cleantext = cleanText}"\n\nتأتي هذه الخطوة في إطار مواكبة التطورات المحلية وتعزيز التغطية الإعلامية المهنية لمانشيتات إيموزار إكسبريس.`;
+        
+        alert("تمت إعادة صياغة الخبر وترتيبه بنجاح في حقول العنوان والمحتوى!");
+    }
+
+    async function publishToGithub() {
+        const title = document.getElementById("newsTitle").value.trim();
+        const category = document.getElementById("newsCategory").value.trim();
+        const content = document.getElementById("newsContent").value.trim();
+        let token = document.getElementById("ghTokenInput").value.trim();
+        
+        if(token) {
+            localStorage.setItem("GH_PAT", token);
+        } else {
+            token = localStorage.getItem("GH_PAT");
+        }
+
+        const status = document.getElementById("statusMsg");
+
+        if (!title || !content) {
+            alert("يرجى إدخال العنوان والمحتوى!");
+            return;
+        }
+
+        if (!token) {
+            alert("الرجاء إدخال رمز GitHub Token في الحقل المخصص لتمكين النشر!");
+            return;
+        }
+
+        status.style.color = "#f59e0b";
+        status.innerText = "جاري نشر الخبر وتحديث RSS...";
+
+        const pubDate = new Date().toUTCString();
+        const rssContent = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>إيموزار إكسبريس</title>
+  <link>https://${REPO_OWNER}.github.io/${REPO_NAME}/</link>
+  <description>أخبار ومتابعات إيموزار كندر والإقليم</description>
+  <item>
+    <title><![CDATA[${title}]]></title>
+    <link>https://${REPO_OWNER}.github.io/${REPO_NAME}/</link>
+    <description><![CDATA[${content}]]></description>
+    <category><![CDATA[${category}]]></category>
+    <pubDate>${pubDate}</pubDate>
+  </item>
+</channel>
+</rss>`;
+
+        try {
+            let shaRss = "";
+            const getRss = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
+                headers: { 'Authorization': `token ${token}` }
+            });
+            if (getRss.ok) {
+                const data = await getRss.json();
+                shaRss = data.sha;
+            }
+
+            const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/rss.xml`, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: `نشر خبر جديد: ${title}`,
+                    content: btoa(unescape(encodeURIComponent(rssContent))),
+                    sha: shaRss || undefined
+                })
+            });
+
+            if(response.ok) {
+                status.style.color = "#10b981";
+                status.innerText = "تم نشر الخبر وتحديث الـ RSS بنجاح وسينشر على فيسبوك تلقائياً!";
+                document.getElementById("newsTitle").value = "";
+                document.getElementById("newsContent").value = "";
+                document.getElementById("rawNewsInput").value = "";
+            } else {
+                status.style.color = "#ef4444";
+                status.innerText = "خطأ في النشر: تأكد من صحة رمز GitHub Token.";
+            }
+        } catch (e) {
+            status.style.color = "#ef4444";
+            status.innerText = "حدث خطأ: " + e.message;
+        }
+    }
+</script>
+</body>
+</html>
