@@ -2,8 +2,8 @@ name: Auto Post Imouzzer Express 24/7
 
 on:
   schedule:
-    - cron: '0 */3 * * *' # ينشر كل 3 ساعات تلقائياً
-  workflow_dispatch: # يتيح لك تشغيل البوت يدوياً للتجربة في أي وقت
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
 
 jobs:
   build-and-post:
