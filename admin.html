@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم إيموزار إكسبريس</title>
+    <title>لوحة تحكم إيموزار إكسبريس الذكية</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #0f172a; color: #fff; padding: 20px; margin: 0; }
         .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 20px; }
@@ -12,9 +12,9 @@
         input, textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
         button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 15px; cursor: pointer; }
         button:hover { background: #d97706; }
-        .ai-btn { background: #38bdf8; color: #0f172a; }
-        .ai-btn:hover { background: #0ea5e9; }
-        .setup-box { background: #334155; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; color: #94a3b8; }
+        .ai-btn { background: #10b981; color: #fff; font-size: 15px; }
+        .ai-btn:hover { background: #059669; }
+        .setup-box { background: #334155; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; color: #94a3b8; }
         .forgot-btn { background: transparent; color: #38bdf8; border: none; margin-top: 10px; cursor: pointer; font-size: 14px; text-decoration: underline; width: 100%; text-align: center; }
     </style>
 </head>
@@ -34,27 +34,31 @@
     <p id="loginMsg" style="text-align: center; margin-top: 10px; font-weight: bold;"></p>
 </div>
 
-<!-- قسم لوحة التحكم والأدوات الذكية -->
+<!-- قسم لوحة التحكم ونظام البحث وصياغة الأخبار الآلي -->
 <div class="container" id="adminSection" style="display: none;">
-    <h2>إدارة ونشر الأخبار (المساعد الذكي)</h2>
+    <h2>إدارة ونشر الأخبار (Gemini AI)</h2>
     
-    <div class="setup-box" style="background: #0f172a; border: 1px solid #334155;">
-        <label for="rawNewsInput" style="margin-top: 0; color: #38bdf8;">الصق الخبر الخام أو الفكرة هنا لإعادة صياغتها تلقائياً:</label>
-        <textarea id="rawNewsInput" rows="3" placeholder="ضع النص الأصلي للخبر هنا..."></textarea>
-        <button class="ai-btn" onclick="rewriteNewsAI()">✨ إعادة صياغة وتحسين الخبر ذكياً</button>
+    <div class="setup-box" style="background: #0f172a; border: 1px solid #38bdf8;">
+        <label for="geminiApiKey" style="margin-top: 0; color: #38bdf8;">مفتاح Gemini API (لأول مرة فقط):</label>
+        <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
+
+        <label for="searchTopic" style="color: #f59e0b;">موضوع الخبر للبحث والصياغة الآلية:</label>
+        <input type="text" id="searchTopic" placeholder="مثال: طقس إيموزار كندر وتطورات الإقليم">
+        
+        <button class="ai-btn" onclick="generateNewsWithGemini()">🔍 البحث عن موضوع الخبر وصياغته آلياً (Gemini)</button>
     </div>
 
     <label for="ghTokenInput">رمز GitHub Token (للنشر المباشر):</label>
     <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxxxx">
 
     <label for="newsTitle">عنوان الخبر:</label>
-    <input type="text" id="newsTitle" placeholder="أدخل عنوان الخبر الرئيسي">
+    <input type="text" id="newsTitle" placeholder="سيظهر العنوان المصاغ تلقائياً هنا">
 
     <label for="newsCategory">التصنيف:</label>
     <input type="text" id="newsCategory" value="متابعات إيموزار كندر والإقليم">
 
     <label for="newsContent">محتوى الخبر:</label>
-    <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea>
+    <textarea id="newsContent" rows="7" placeholder="سيظهر محتوى الخبر المولد تلقائياً هنا..."></textarea>
 
     <button onclick="publishToGithub()">نشر الخبر وتحديث الموقع والـ RSS</button>
     <button style="background: #ef4444; color: #fff; margin-top: 10px;" onclick="logout()">تسجيل الخروج</button>
@@ -71,6 +75,9 @@
         document.getElementById("adminSection").style.display = "block";
         if(localStorage.getItem("GH_PAT")) {
             document.getElementById("ghTokenInput").value = localStorage.getItem("GH_PAT");
+        }
+        if(localStorage.getItem("GEMINI_KEY")) {
+            document.getElementById("geminiApiKey").value = localStorage.getItem("GEMINI_KEY");
         }
     }
 
@@ -92,8 +99,6 @@
     }
 
     function recoverPassword() {
-        const msg = document.getElementById("loginMsg");
-        msg.style.color = "#38bdf8";
         alert(`معلومات الاسترجاع:\nالبريد: fettacheibrahim@gmail.com\nالهاتف: 0615959425\nكلمة المرور: ${SECRET_PIN}`);
     }
 
@@ -102,24 +107,64 @@
         location.reload();
     }
 
-    // أداة المساعد الذكي لإعادة صياغة النصوص المنسوخة
-    function rewriteNewsAI() {
-        const rawText = document.getElementById("rawNewsInput").value.trim();
-        if (!rawText) {
-            alert("الرجاء لصق النص الخام أو فكرة الخبر أولاً!");
+    // خاصية البحث والتوليد الآلي عبر Gemini API
+    async function generateNewsWithGemini() {
+        const topic = document.getElementById("searchTopic").value.trim();
+        let apiKey = document.getElementById("geminiApiKey").value.trim();
+        const status = document.getElementById("statusMsg");
+
+        if (!topic) {
+            alert("يرجى إدخال موضوع الخبر للبحث عنه وصياغته!");
             return;
         }
 
-        // معالجة وصياغة احترافية مبدئية للنص المنسوخ
-        const cleanText = rawText.replace(/\s+/g, ' ');
-        const words = cleanText.split(' ');
-        const generatedTitle = words.slice(0, 7).join(' ') + '...';
+        if (apiKey) {
+            localStorage.setItem("GEMINI_KEY", apiKey);
+        } else {
+            apiKey = localStorage.getItem("GEMINI_KEY");
+        }
 
-        document.getElementById("newsTitle").value = "متابعة: " + generatedTitle;
-        document.getElementById("newsContent").value = 
-            `تشهد منطقة إيموزار كندر والإقليم مستجدات هامة، حيث أفادت المعطيات الواردة بأن: "${cleantext = cleanText}"\n\nتأتي هذه الخطوة في إطار مواكبة التطورات المحلية وتعزيز التغطية الإعلامية المهنية لمانشيتات إيموزار إكسبريس.`;
-        
-        alert("تمت إعادة صياغة الخبر وترتيبه بنجاح في حقول العنوان والمحتوى!");
+        if (!apiKey) {
+            alert("يرجى إدخال مفتاح Gemini API الخاص بك من Google AI Studio!");
+            return;
+        }
+
+        status.style.color = "#38bdf8";
+        status.innerText = "جاري الاتصال بـ Gemini API لبحث وصياغة الخبر آلياً...";
+
+        const promptText = `أنت محرر صحفي في منصة "إيموزار إكسبريس" الإخبارية. قم بصياغة خبر إخباري حديث ومكتمل بناءً على الموضوع التالي: "${topic}". 
+اكتب الاستجابة بترميز JSON حصراً يحتوي على المفتاحين التاليين:
+- "title": عنوان إخباري جذاب ومناسب.
+- "content": نص الخبر بأسلوب صحفي مهني ومفصل باللغة العربية.`;
+
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }]
+                })
+            });
+
+            if (!response.ok) throw new Error("فشل الاتصال بـ Gemini API، تحقق من المفتاح.");
+
+            const data = await response.json();
+            const rawOutput = data.candidates[0].content.parts[0].text;
+            
+            // استخراج وتنسيق النتيجة
+            const cleanJsonStr = rawOutput.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanJsonStr);
+
+            document.getElementById("newsTitle").value = parsed.title || ("متابعات: " + topic);
+            document.getElementById("newsContent").value = parsed.content || rawOutput;
+
+            status.style.color = "#10b981";
+            status.innerText = "تمت صياغة الخبر وتوليده بنجاح! مراجعته مجهزة للنشر.";
+        } catch (e) {
+            status.style.color = "#ef4444";
+            status.innerText = "حدث خطأ أثناء الصياغة: " + e.message;
+        }
     }
 
     async function publishToGithub() {
@@ -142,7 +187,7 @@
         }
 
         if (!token) {
-            alert("الرجاء إدخال رمز GitHub Token في الحقل المخصص لتمكين النشر!");
+            alert("الرجاء إدخال رمز GitHub Token لتمكين النشر!");
             return;
         }
 
@@ -191,7 +236,6 @@
                 status.innerText = "تم نشر الخبر وتحديث الـ RSS بنجاح وسينشر على فيسبوك تلقائياً!";
                 document.getElementById("newsTitle").value = "";
                 document.getElementById("newsContent").value = "";
-                document.getElementById("rawNewsInput").value = "";
             } else {
                 status.style.color = "#ef4444";
                 status.innerText = "خطأ في النشر: تأكد من صحة رمز GitHub Token.";
