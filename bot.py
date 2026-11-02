@@ -1,76 +1,53 @@
 import os
 import requests
 import feedparser
-import random
 
-# قراءة الرمز من Secret
-USER_TOKEN = os.getenv('FB_PAGE_TOKEN')
-PAGE_ID = '110232817345910'
-SITE_URL = 'https://fettacheibrahim-cloud.github.io/imouzzer-express/'
+# قراءة رمز المصادقة الخاص بصفحة فيسبوك من متغيرات البيئة
+PAGE_TOKEN = os.getenv("FB_PAGE_TOKEN")
+# يمكنك استبدال هذا الرابط برابط مصدر الأخبار (RSS Feed) الخاص بموقعك أو صفحتك
+RSS_FEED_URL = "https://example.com/rss" # ضع رابط الـ RSS الخاص بك هنا
 
-RSS_SOURCES = [
-    'https://www.hespress.com/feed',
-    'https://www.Hespress.com/tag/إفران/feed'
-]
+def post_to_facebook(message):
+    """دالة لنشر المحتوى على صفحة فيسبوك باستخدام Facebook Graph API"""
+    if not PAGE_TOKEN:
+        print("Error: FB_PAGE_TOKEN is not set in repository secrets.")
+        return False
 
-def fetch_random_news():
-    print("🔍 جاري تفقد مصادر الأخبار...")
-    all_entries = []
-    for url in RSS_SOURCES:
-        try:
-            feed = feedparser.parse(url)
-            if feed.entries:
-                all_entries.extend(feed.entries)
-        except Exception as e:
-            print(f"⚠️ تعذر القراءة من {url}: {e}")
-            
-    if all_entries:
-        chosen = random.choice(all_entries[:10])
-        return chosen.title, SITE_URL
-    
-    return "مستجدات وتغطيات مستمرة لجهة إيموزار كندر وإقليم إفران", SITE_URL
-
-def format_moroccan_style(title):
-    moroccan_intro = "🇲🇦 #إيموزار_إكسبريس | متابعات وجهوية:\n\n"
-    body = f"📢 في التفاصيل: {title}\n\nللاطلاع على باقي التفاصيل، تجدون المقال كاملًا عبر موقعنا أسفله. 👇"
-    return moroccan_intro + body
-
-def get_page_access_token():
-    print("🔄 جاري جلب رمز الوصول الخاص بالصفحة تلقائياً...")
-    url = f"https://graph.facebook.com/v26.0/me/accounts?access_token={USER_TOKEN}"
-    try:
-        res = requests.get(url).json()
-        if 'data' in res:
-            for page in res['data']:
-                if page.get('id') == PAGE_ID:
-                    print("✅ تم العثور على رمز الصفحة بنجاح!")
-                    return page.get('access_token')
-        print( لم يتم العثور على الصفحة عبر الرموز، سيتم التجربة بالرمز المباشر...)
-    except Exception as e:
-        print(f"⚠️ خطأ في جلب رمز الصفحة: {e}")
-    return USER_TOKEN
-
-def publish_to_facebook(message, link):
-    token = get_page_access_token()
-    url = f"https://graph.facebook.com/v26.0/{PAGE_ID}/feed"
+    url = f"https://graph.facebook.com/v17.0/me/feed"
     payload = {
         'message': message,
-        'link': link.strip(),
-        'access_token': token
+        'access_token': PAGE_TOKEN
     }
+    
     try:
         response = requests.post(url, data=payload)
-        res_data = response.json()
-        if 'id' in res_data:
-            print(f"✅ تم النشر بنجاح سحابياً! المعرّف: {res_data['id']}")
+        result = response.json()
+        
+        if 'id' in result:
+            print("Post published successfully with ID:", result['id'])
+            return True
         else:
-            print(f"❌ خطأ من فيسبوك: {res_data}")
+            print("Failed to publish post:", result)
+            return False
     except Exception as e:
-        print(f"❌ خطأ في الاتصال: {e}")
+        print("An error occurred during posting:", e)
+        return False
+
+def main():
+    print("Starting bot execution...")
+    
+    # مثال توضيحي لجلب أحدث خبر من مصدر RSS والنشر تلقائياً
+    try:
+        feed = feedparser.parse(RSS_FEED_URL)
+        if feed.entries:
+            latest_entry = feed.entries[0]
+            post_message = f"{latest_entry.title}\n\n{latest_entry.link}"
+            print("Found new article, publishing to Facebook...")
+            post_to_facebook(post_message)
+        else:
+            print("No entries found in the RSS feed.")
+    except Exception as e:
+        print("Error parsing RSS feed or running bot:", e)
 
 if __name__ == "__main__":
-    print("🤖 تشغيل البوت عبر GitHub Actions...")
-    title, link = fetch_random_news()
-    if title and link:
-        msg = format_moroccan_style(title)
-        publish_to_facebook(msg, link)
+    main()
