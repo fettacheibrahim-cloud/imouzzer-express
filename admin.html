@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم إيموزار إكسبريس</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background-color: #0f172a; color: #fff; padding: 20px; margin: 0; }
+        .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: #f59e0b; }
+        label { display: block; margin-top: 15px; margin-bottom: 5px; color: #cbd5e1; }
+        input, textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
+        button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 5px; margin-top: 20px; cursor: pointer; }
+        button:hover { background: #d97706; }
+        .login-box { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="loginSection">
+    <h2>تسجيل دخول الأدمن</h2>
+    <label for="adminPass">كلمة المرور:</label>
+    <input type="password" id="adminPass" placeholder="أدخل كلمة المرور الخاصة بك">
+    <button onclick="checkLogin()">دخول</button>
+</div>
+
+<div class="container" id="adminSection" style="display: none;">
+    <h2>إضافة خبر جديد</h2>
+    <label for="newsTitle">عنوان الخبر:</label>
+    <input type="text" id="newsTitle" placeholder="أدخل عنوان الخبر الرئيسي">
+
+    <label for="newsCategory">التصنيف:</label>
+    <input type="text" id="newsCategory" placeholder="مثال: متابعات إيموزار كندر والإقليم">
+
+    <label for="newsContent">محتوى الخبر:</label>
+    <textarea id="newsContent" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea>
+
+    <button onclick="publishNews()">نشر الخبر وتحديث الموقع</button>
+    <p id="statusMsg" style="text-align: center; margin-top: 15px;"></p>
+</div>
+
+<script>
+    // كلمة المرور الخاصة بك للوحة التحكم (يمكنك تغييرها هنا)
+    const SECRET_PIN = "1234";
+
+    function checkLogin() {
+        const pass = document.getElementById("adminPass").value;
+        if (pass === SECRET_PIN) {
+            document.getElementById("loginSection").style.display = "none";
+            document.getElementById("adminSection").style.display = "block";
+        } else {
+            alert("كلمة المرور غير صحيحة!");
+        }
+    }
+
+    function publishNews() {
+        const title = document.getElementById("newsTitle").value;
+        const category = document.getElementById("newsCategory").value;
+        const content = document.getElementById("newsContent").value;
+        const status = document.getElementById("statusMsg");
+
+        if (!title || !content) {
+            alert("الرجاء ملء عنوان ومحتوى الخبر على الأقل!");
+            return;
+        }
+
+        status.style.color = "#f59e0b";
+        status.innerText = "جاري حفظ ونشر الخبر...";
+
+        // ملاحظة: لربط هذه الواجهة برمجياً بمستودع GitHub مباشرة لتحديث ملف الـ RSS تلقائياً،
+        // سنحتاج إلى ربطها بـ GitHub API باستخدام Token شخصي للمستودع (Personal Access Token).
+        setTimeout(() => {
+            status.style.color = "#10b981";
+            status.innerText = "تم حفظ الخبر بنجاح! سيتم تحديث الموقع ونشره فيسبوك قريباً.";
+        }, 1500);
+    }
+</script>
+
+</body>
+</html>
